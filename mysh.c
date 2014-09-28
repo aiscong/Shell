@@ -12,9 +12,7 @@ int isBuildin(const char *cmd){
   char *exit = "exit";
   char *cd = "cd";
   char *pwd = "pwd";
-  // printf("the string here is %s\n", cmd);
   if(strcmp(cmd, exit) == 0){
-    // printf("the string here is %s\n", cmd);
     return 0;
   }else if (strcmp(cmd, cd) == 0){
     return 1;
@@ -26,7 +24,10 @@ int isBuildin(const char *cmd){
 }
 
 char * pwd();
-
+void runfirst(int fd[]);
+void runsec(int fd[]);
+void rundirect(char *cmd[]);
+void runappend(char *cmd[]);
 int cd(const char * path);
 
 int main(){
@@ -86,80 +87,135 @@ int main(){
 	  fprintf(stderr, "Error!\n");
 	} 
 	// start of child processes 
-      }else{
-	int rc = fork();
-	if(rc == 0){
-	  int error = 0;
-	  //TODO: implement >, >> and |
-	  //this is where > or >> is supposed to appear
-	  if(findc(cmd) == 0){
-	    //TODO apply func
-	    int i = findi(cmd, ">");
-	    //printf("Index of > is %d\n", i);
-	    if(cmd[i+2] != NULL){
-	      //TODO: when get this error, we still created a empty file
-	      fprintf(stderr, "Error0!\n");
-	      error = 1;
-	    }else{
-	      // printf("Index of > is %d\n", i);     
-	      cmd[i] = NULL;
-	      // printf("file name %s\n", cmd[i+1]);
-	      int file = open(cmd[i+1], O_RDWR | O_CREAT | O_TRUNC, S_IRWXU);
-	      //fail to open the file
-	      if(file < 0){
-		error = 1;
-		fprintf(stderr, "Error1!\n");
-	      }else{
-		//Now we redirect standard output to the file using dup2
-		if(dup2(file,1) < 0){
-		  error = 1;
-		  //fail to redirect
-		  fprintf(stderr, "Error2!\n");
-		} // end of redirecting checking
-	      }// end of open the file checking
-	    } // proper syntax for >
-	  }// ">"
-	  else if (findc(cmd) == 1){
-	    int i = findi(cmd, ">>");
-	    if(cmd[i+2] != NULL){
-	      fprintf(stderr, "Error0!\n");
-	      error = 1;
-	    }else{
-	      cmd[i] = NULL;
-	      int file = open(cmd[i+1], O_RDWR | O_APPEND);
-	      if(file < 0){
-		error = 1;
-		fprintf(stderr, "Error1\n");
-	      }else{
-		if(dup2(file, 1) < 0){
-		  error = 1;
-		  fprintf(stderr, "Error2!\n");
-		} //end of redirecting checking
-	      }// end of open the file checking
-	    }// proper syntax for >>
-	  }// >>
-	  
-	  // if no error occured, execute the command in the child process
-	  if(error == 0){
+      }
+      //Not build-in commands
+      else{
+	int error = 0;
+	if(findc(cmd) == 0){
+	  rundirect(cmd);
+	}// ">" 
+	
+	else if (findc(cmd) == 1){
+	  runappend(cmd);
+	}// >>
+
+	else if(findc(cmd = = 2){
+	
+	  } // pipe 
+	else{
+	  int rc = fork();
+	  if(rc == 0){
+	    // if no error occured, execute the command in the child process
 	    execvp(cmd[0], cmd);
 	    // fail to run the cmd or program                                                                                                                
 	    fprintf(stderr, "Error4!\n");                                                                                                    
+	    //if failure occurs, kill the child process 
+	    kill(getpid(), SIGKILL);
 	  }
-	  //if failure occurs, kill the child process 
-	  kill(getpid(), SIGKILL);
+	  else if (rc > 0){
+	    //parent waiting for child process to finish
+	    wait();
+	  }
+	  //fork failed 
+	  else{
+	    perror("fork failed");
+	  }
 	}
-	else if (rc > 0){
-	  //parent waiting for child process to finish
-	  wait();
-	}
-	//fork failed 
-	else{
-	  perror("fork failed");
-	}
-      } // end of else 
+      } // end of non-buildin command
     }
   } // end of first arg is not NULL
   return 0;
+}
+
+void rundirect(char* cmd[]){
+  int rc = fork();
+  int error = 0;
+  if(rc == 0){
+    int error = 0;
+    int i = findi(cmd, ">");
+    if(cmd[i+2] != NULL){
+      fprintf(stderr, "Error0!\n");
+      error = 1;
+    }else{
+      cmd[i] = NULL;
+      int file = open(cmd[i+1], O_RDWR | O_CREAT | O_TRUNC, S_IRWXU);
+      //fail to open the file
+      if(file < 0){
+	error = 1;
+	fprintf(stderr, "Error1!\n");
+      }else{
+	//Now we redirect standard output to the file using dup2
+	if(dup2(file,1) < 0){
+	  error = 1;
+	  //fail to redirect
+	  fprintf(stderr, "Error2!\n");
+	} // end of redirecting checking
+      }// end of open the file checking
+    } // proper syntax for >
+
+    if(error == 0){
+      execvp(cmd[0], cmd);
+      // fail to run the cmd or program                                                                                                                
+      fprintf(stderr, "Error4!\n");                                                                                                    
+    }
+    //if failure occurs, kill the child process 
+    kill(getpid(), SIGKILL);
+  }
+  else if (rc > 0){
+    //parent waiting for child process to finish
+    wait();
+  }
+  //fork failed 
+  else{
+    perror("fork failed");
+  }
+}
+
+void runappend(char* cmd[]){
+  int rc = fork();
+  int error = 0;
+  if(rc == 0){
+    int i = findi(cmd, ">>");
+    if(cmd[i+2] != NULL){
+      fprintf(stderr, "Error0!\n");
+      error = 1;
+    }else{
+      cmd[i] = NULL;
+      int file = open(cmd[i+1], O_RDWR | O_APPEND);
+      if(file < 0){
+	error = 1;
+	fprintf(stderr, "Error1\n");
+      }else{
+	if(dup2(file, 1) < 0){
+	  error = 1;
+	  fprintf(stderr, "Error2!\n");
+	} //end of redirecting checking                                                                                                                                                                
+      }// end of open the file checking                                                                                                                                                                 
+    } // end of proper syntax
+    if(error == 0){
+      execvp(cmd[0], cmd);
+      // fail to run the cmd or program                                                                                                                                                                       
+      fprintf(stderr, "Error4!\n");
+    }
+    //if failure occurs, kill the child process                                                                                                                                                               
+    kill(getpid(), SIGKILL);
+  } // end of child process 
+  else if (rc > 0){
+    //parent waiting for child process to finish                                                                                                                                                              
+    wait();
+  }
+  //fork failed                                                                                                                                                                                             
+  else{
+    perror("fork failed");
+  }
+}
+
+void runfirst(int fd[]){
+
+  return;
+}
+void runsec(int fd[]){
+  return;
 }
 
 int findi(const char* cmd[], char *key){
