@@ -84,7 +84,6 @@ int main(){
 	}else{
 	  fprintf(stderr, "Error!\n");
 	} 
-	// start of child processes 
       }
       //Not build-in commands
       else{
@@ -103,9 +102,7 @@ int main(){
 	  int i = findi(cmd);
 	  cmd[i] = NULL;
 	  if(pipe(fd) == 0){
-	    // fprintf(stderr, "%d", e);
 	    runfirst(fd, cmd);
-	    // fprintf(stderr, "%d",  e);
 	    runsec(fd, &cmd[i+1]);
        	    close(fd[0]);
 	    close(fd[1]);
@@ -122,7 +119,7 @@ int main(){
 	    // if no error occured, execute the command in the child process
 	    execvp(cmd[0], cmd);
 	    // fail to run the cmd or program                                                                                                                
-	    fprintf(stderr, "Error4!\n");                                                                                                    
+	    fprintf(stderr, "Error!\n");                                                                                                    
 	    //if failure occurs, kill the child process 
 	    kill(getpid(), SIGKILL);
 	  }
@@ -132,7 +129,7 @@ int main(){
 	  }
 	  //fork failed 
 	  else{
-	    perror("fork failed");
+	    fprintf(stderr, "Error!\n");
 	  }
 	}
       } // end of non-buildin command
@@ -148,7 +145,7 @@ void rundirect(char* cmd[]){
     int error = 0;
     int i = findi(cmd, ">");
     if(cmd[i+2] != NULL){
-      fprintf(stderr, "Error0!\n");
+      fprintf(stderr, "Error!\n");
       error = 1;
     }else{
       cmd[i] = NULL;
@@ -156,13 +153,13 @@ void rundirect(char* cmd[]){
       //fail to open the file
       if(file < 0){
 	error = 1;
-	fprintf(stderr, "Error1!\n");
+	fprintf(stderr, "Error!\n");
       }else{
 	//Now we redirect standard output to the file using dup2
 	if(dup2(file,1) < 0){
 	  error = 1;
 	  //fail to redirect
-	  fprintf(stderr, "Error2!\n");
+	  fprintf(stderr, "Error!\n");
 	} // end of redirecting checking
       }// end of open the file checking
     } // proper syntax for >
@@ -170,7 +167,7 @@ void rundirect(char* cmd[]){
     if(error == 0){
       execvp(cmd[0], cmd);
       // fail to run the cmd or program                                                                                                                
-      fprintf(stderr, "Error4!\n");                                                                                                    
+      fprintf(stderr, "Error!\n");                                                                                                    
     }
     //if failure occurs, kill the child process 
     kill(getpid(), SIGKILL);
@@ -178,10 +175,9 @@ void rundirect(char* cmd[]){
   else if (rc > 0){
     //parent waiting for child process to finish
     wait();
-  }
-  //fork failed 
+  }//fork failed 
   else{
-    perror("fork failed");
+    fprintf(stderr, "Error!\n");
   }
 }
 
@@ -191,25 +187,25 @@ void runappend(char* cmd[]){
   if(rc == 0){
     int i = findi(cmd, ">>");
     if(cmd[i+2] != NULL){
-      fprintf(stderr, "Error0!\n");
+      fprintf(stderr, "Error!\n");
       error = 1;
     }else{
       cmd[i] = NULL;
       int file = open(cmd[i+1], O_RDWR | O_APPEND);
       if(file < 0){
 	error = 1;
-	fprintf(stderr, "Error1\n");
+	fprintf(stderr, "Error!\n");
       }else{
 	if(dup2(file, 1) < 0){
 	  error = 1;
-	  fprintf(stderr, "Error2!\n");
+	  fprintf(stderr, "Error!\n");
 	} //end of redirecting checking                                                                                                                                                                
       }// end of open the file checking                                                                                                                                                                 
     } // end of proper syntax
     if(error == 0){
       execvp(cmd[0], cmd);
       // fail to run the cmd or program                                                                                                                                                                       
-      fprintf(stderr, "Error4!\n");
+      fprintf(stderr, "Error!\n");
     }
     //if failure occurs, kill the child process                                                                                                                                                               
     kill(getpid(), SIGKILL);
@@ -217,10 +213,9 @@ void runappend(char* cmd[]){
   else if (rc > 0){
     //parent waiting for child process to finish                                                                                                                                                              
     wait();
-  }
-  //fork failed                                                                                                                                                                                             
+  }//fork failed                                                                                                                                                                                             
   else{
-    perror("fork failed");
+    fprintf(stderr, "Error!\n");
   }
 }
 // first process, this end becomes stdout
@@ -231,17 +226,18 @@ void runfirst(int fd[], char* cmd[]){
     int i = 0;
     if(dup2(fd[1], 1) != -1){
       execvp(cmd[0], cmd);
-      //      kill(getpid(), SIGKILL);
-      //return 1;
+      fprintf(stderr, "Error!\n");
+      kill(getpid(), SIGKILL);
     }else{
-    
+      fprintf(stderr, "Error!\n");
+      kill(getpid(), SIGKILL);
     }
   } // end of child proc
   else if(rc > 0){
-     wait();
-  }
+    wait();
+  }//fork failed
   else{
-     perror("Fork failed first process");
+    fprintf(stderr, "Error!\n");
   }       
 }
 
@@ -256,15 +252,16 @@ void runsec(int fd[], char* cmd[]){
       execvp(cmd[0], cmd);
       fprintf(stderr, "Error!\n");
       kill(getpid(), SIGKILL);
-      }else{
-     //give an error, stop the whole cmd                                                                                                                    
+    }else{
+      fprintf(stderr, "Error!\n");
+      kill(getpid(), SIGKILL);
     }
   } // end of child proc                                                                                                                                     
   else if(rc > 0){
     // parent close pipe in main and parent wait 
   }
   else{
-   perror("Fork failed second process");
+    fprintf(stderr, "Error!\n");
   }
 }
 
