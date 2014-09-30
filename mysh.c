@@ -24,8 +24,8 @@ int isBuildin(const char *cmd){
 }
 
 char * pwd();
-void runfirst(int fd[]);
-void runsec(int fd[]);
+void runfirst(int fd[], char* cmd[]);
+void runsec(int fd[], char* cmd[]);
 void rundirect(char *cmd[]);
 void runappend(char *cmd[]);
 int cd(const char * path);
@@ -71,9 +71,7 @@ int main(){
 	}else{
 	  fprintf(stderr, "Error!\n");
 	}
-
 	//TODO: absolute path and relative path strcat; need to check if cmd[2]==NULL or not proper syntax
-    
 	//build-in pwd command is called
       }else if(isBuildin(cmd[0]) == 2){
 	if(cmd[1] == NULL){
@@ -99,9 +97,25 @@ int main(){
 	  runappend(cmd);
 	}// >>
 
-	else if(findc(cmd = = 2){
-	
-	  } // pipe 
+	else if(findc(cmd) == 2){
+	  int fd[2];
+	  int e = 0;
+	  int i = findi(cmd);
+	  cmd[i] = NULL;
+	  if(pipe(fd) == 0){
+	    // fprintf(stderr, "%d", e);
+	    runfirst(fd, cmd);
+	    // fprintf(stderr, "%d",  e);
+	    runsec(fd, &cmd[i+1]);
+       	    close(fd[0]);
+	    close(fd[1]);
+	    wait();
+	  }
+	  else{
+	    fprintf(stderr, "Error!\n");
+	  }
+	} // pipe 
+
 	else{
 	  int rc = fork();
 	  if(rc == 0){
@@ -209,22 +223,58 @@ void runappend(char* cmd[]){
     perror("fork failed");
   }
 }
-
-void runfirst(int fd[]){
-
-  return;
+// first process, this end becomes stdout
+void runfirst(int fd[], char* cmd[]){
+  int rc = fork();
+  if(rc == 0){
+    close(fd[0]);
+    int i = 0;
+    if(dup2(fd[1], 1) != -1){
+      execvp(cmd[0], cmd);
+      //      kill(getpid(), SIGKILL);
+      //return 1;
+    }else{
+    
+    }
+  } // end of child proc
+  else if(rc > 0){
+     wait();
+  }
+  else{
+     perror("Fork failed first process");
+  }       
 }
-void runsec(int fd[]){
-  return;
+
+// second proc, this end becomes stdout
+void runsec(int fd[], char* cmd[]){
+  int rc = fork();
+  if(rc == 0){
+    //Child process                                                                                                                                          
+    //close this end                                                                                                                                         
+    close(fd[1]);
+    if(dup2(fd[0], 0) != -1){
+      execvp(cmd[0], cmd);
+      fprintf(stderr, "Error!\n");
+      kill(getpid(), SIGKILL);
+      }else{
+     //give an error, stop the whole cmd                                                                                                                    
+    }
+  } // end of child proc                                                                                                                                     
+  else if(rc > 0){
+    // parent close pipe in main and parent wait 
+  }
+  else{
+   perror("Fork failed second process");
+  }
 }
 
 int findi(const char* cmd[], char *key){
   int i;
-  printf("we are checking string %s\n", key);
+  // printf("we are checking string %s\n", key);
   while (cmd[i] != NULL){
-    printf("the current string in the command is %s\n", cmd[i]);
+    //  printf("the current string in the command is %s\n", cmd[i]);
     if(strcmp(cmd[i], key) == 0){
-      printf("the current index is %d\n", i);
+      // printf("the current index is %d\n", i);
       return i;
     }
     i++;
