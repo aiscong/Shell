@@ -25,7 +25,7 @@ int isBuildin(const char *cmd){
 
 char * pwd();
 void runfirst(int fd[], char* cmd[]);
-void runsec(int fd[], char* cmd[]);
+void runsec(int fd[], char* cmd[], int redirect, int fileStart);
 void rundirect(char *cmd[]);
 void runappend(char *cmd[]);
 int cd(const char * path);
@@ -97,13 +97,26 @@ int main(){
 	}// >>
 
 	else if(findc(cmd) == 2){
+	  int i = findi(cmd, "|");
+	  int redirect = 0;
+	  int fileStart = -1;
+	  //there is additional redirect
+	  if(findc(&cmd[i+1]) == 0){
+	    redirect = 1; 
+	    fileStart = findi(cmd, ">");
+	    cmd[fileStart] = NULL;
+	  }
+	  if(findc(&cmd[i+1]) == 1){
+	    redirect = 2; 
+	    fileStart = findi(cmd, ">>");
+	    cmd[fileStart] = NULL;
+	  }
+	 
 	  int fd[2];
-	  int e = 0;
-	  int i = findi(cmd);
 	  cmd[i] = NULL;
 	  if(pipe(fd) == 0){
 	    runfirst(fd, cmd);
-	    runsec(fd, &cmd[i+1]);
+	    runsec(fd, &cmd[i+1], redirect, fileStart-i-1);
        	    close(fd[0]);
 	    close(fd[1]);
 	    wait();
@@ -193,18 +206,18 @@ void runappend(char* cmd[]){
       cmd[i] = NULL;
       int file = open(cmd[i+1], O_RDWR| O_APPEND);
       if(file < 0){
-	file = open(cmd[i+1], O_RDWR| O_CREAT | O_TRUNC, S_IRWXU);
+	file = open(cmd[i+1], O_RDWR | O_CREAT | O_TRUNC, S_IRWXU);
 	if(file < 0){
-	error = 1;
-	fprintf(stderr, "Error!\n");
-	return;
-	}
-     }
-	if(dup2(file, 1) < 0){
 	  error = 1;
 	  fprintf(stderr, "Error!\n");
-	} //end of redirecting checking                                                                                                                                                                
-      } // end of proper syntax
+	  return;
+	}
+      }
+      if(dup2(file, 1) < 0){
+	error = 1;
+	fprintf(stderr, "Error!\n");
+      } //end of redirecting checking                                                                                                                                                                
+    } // end of proper syntax
     if(error == 0){
       execvp(cmd[0], cmd);
       // fail to run the cmd or program                                                                                                                                                                       
@@ -245,13 +258,49 @@ void runfirst(int fd[], char* cmd[]){
 }
 
 // second proc, this end becomes stdout
-void runsec(int fd[], char* cmd[]){
+void runsec(int fd[], char* cmd[], int redirect, int fileStart){
   int rc = fork();
   if(rc == 0){
     //Child process                                                                                                                                          
     //close this end                                                                                                                                         
     close(fd[1]);
     if(dup2(fd[0], 0) != -1){
+      //     printf("redirect is %d\n", redirect);
+      if(redirect == 1){
+	if(cmd[fileStart+2] != NULL) return; //not proper syntax
+	int file = open(cmd[fileStart+1], O_RDWR | O_CREAT | O_TRUNC, S_IRWXU);
+	//fail to open the file
+	if(file < 0){
+	  fprintf(stderr, "Error!\n");
+	  return;
+	}else{
+	  //Now we redirect standard output to the file using dup2
+	  if(dup2(file,1) < 0){
+	    //  error = 1;
+	    //fail to redirect
+	    fprintf(stderr, "Error!\n");
+	  } // end of redirecting checking
+	}// end of open the file checking
+      } // end of redirection and pipe in a single cmd checking
+      
+      else if(redirect == 2){
+      	if(cmd[fileStart+2] != NULL) return; //not proper syntax
+	int file = open(cmd[fileStart+1], O_RDWR | O_APPEND);
+	if(file < 0){
+	  file = open(cmd[fileStart+1], O_RDWR | O_CREAT | O_TRUNC, S_IRWXU);
+	  if(file < 0){
+	    fprintf(stderr, "Error!\n");
+	    return;
+	  }
+	}
+	
+	//Now we redirect standard output to the file using dup2
+	if(dup2(file,1) < 0){
+	  //fail to redirect
+	  fprintf(stderr, "Error!\n");
+	}// end of open the file checking
+      } // end of redirection append and pipe in a single cmd checking
+      
       execvp(cmd[0], cmd);
       fprintf(stderr, "Error!\n");
       kill(getpid(), SIGKILL);
@@ -340,9 +389,9 @@ char * pwd(){
   // printf("size is %d\n", size);
   if((path = (char *) malloc((size_t)size)) != NULL){
     if(getcwd(path, (size_t)size) != NULL){
-       return path;
-     }else{
-       free(path);
+      return path;
+    }else{
+      free(path);
     }
   }
   return NULL;
